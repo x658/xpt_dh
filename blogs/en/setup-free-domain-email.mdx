@@ -8,41 +8,60 @@ date: "2026-09-09"
 visible: "published"
 pin: false
 ---
-In the era of modern personal branding and indie hacking, sending outreach emails from a generic `@gmail.com` or `@outlook.com` address lacks professionalism. However, commercial business email suites (like Google Workspace or Microsoft 365) cost $6 to $18 per user per month.
+
+In the era of modern personal branding and indie hacking, sending outreach emails from a generic @gmail.com or @outlook.com address lacks professionalism. However, commercial business email suites (like Google Workspace or Microsoft 365) cost $6 to $18 per user per month.
+
 For developers and founders managing multiple domains, this cost quickly escalates.
+
 Fortunately, by leveraging **Cloudflare Email Routing, Cloudflare Workers, and D1 storage**, you can build a 100% free, production-ready private domain email platform. You can test a live implementation of this system on our dedicated [XPT Mail Service](https://mail.xptdev.com).
+
 ---
+
 ## Why Serverless Email Infrastructure?
+
 Traditional mail servers require complex configurations: postfix, dovecot, spam filtering, IP reputation warming, and constant patching.
+
 Cloudflare handles the heavy lifting:
 1. **Global Anycast Network**: High reliability and built-in DDoS resistance.
 2. **Zero Maintenance**: Automated MX routing and zero-cost serverless execution.
 3. **Storage Flexibility**: Store received emails in edge databases (Cloudflare D1) or key-value storage (KV).
+
 ---
-## Step 1: DNS & MX Records Setup
-To receive emails on your domain (e.g., `xptdev.com`), you must configure the following Cloudflare Email Routing MX records:
-| Record Type | Host | Points To | Priority |
-| :--- | :--- | :--- | :--- |
-| **MX** | `@` | `route1.mx.cloudflare.net` | 10 |
-| **MX** | `@` | `route2.mx.cloudflare.net` | 73 |
-| **MX** | `@` | `route3.mx.cloudflare.net` | 68 |
+
+## Step 1: DNS and MX Records Setup
+
+To receive emails on your domain (e.g., xptdev.com), you must configure the following Cloudflare Email Routing MX records:
+
+* MX Host `@` points to `route1.mx.cloudflare.net` (Priority: 10)
+* MX Host `@` points to `route2.mx.cloudflare.net` (Priority: 73)
+* MX Host `@` points to `route3.mx.cloudflare.net` (Priority: 68)
+
 ---
+
 ## Step 2: Configure SPF and DKIM Records
-To ensure your emails don't end up in spam folders, proper authentication records are required:
+
+To ensure your emails do not end up in spam folders, proper authentication records are required:
+
 ### 1. Sender Policy Framework (SPF)
-Add a TXT record to authorize Cloudflare mail servers:
-```text
-v=spf1 include:_spf.mx.cloudflare.net ~all
-2. DomainKeys Identified Mail (DKIM)
+Add a TXT record with host `@` and value:
+`v=spf1 include:_spf.mx.cloudflare.net ~all`
+
+### 2. DomainKeys Identified Mail (DKIM)
 Enable DKIM in your Cloudflare dashboard to automatically sign outgoing mail cryptographically.
 
-Step 3: Deploy the Webmail Worker
+---
+
+## Step 3: Deploy the Webmail Worker
+
 By deploying an open-source mail worker (such as Cloud-Mail):
+* Incoming messages trigger an event listener that parses MIME parts.
+* Plain text, HTML bodies, and attachments are securely persisted to D1 and R2.
+* A clean web interface allows you to read, search, and manage aliases on mobile and desktop.
 
-Incoming messages trigger an event listener that parses MIME parts.
-Plain text, HTML bodies, and attachments are securely persisted to D1 and R2.
-A clean web interface allows you to read, search, and manage aliases on mobile and desktop.
-Experience the clean webmail UI directly at mail.xptdev.com.
+Experience the clean webmail UI directly at [mail.xptdev.com](https://mail.xptdev.com).
 
-Summary
-Setting up a private domain email no longer requires expensive enterprise licenses or complex VPS administration. With Cloudflare's serverless edge, you gain enterprise-grade deliverability at zero operating cost.
+---
+
+## Summary
+
+Setting up a private domain email no longer requires expensive enterprise licenses or complex VPS administration. With Cloudflare serverless edge, you gain enterprise-grade deliverability at zero operating cost.
