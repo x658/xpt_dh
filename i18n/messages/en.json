@@ -8,24 +8,18 @@
   "Header": {
     "links": [
       {
+        "name": "Dev Tools",
+        "href": "https://tools.xptdev.com",
+        "target": "_blank",
+        "rel": "noopener noreferrer"
+      },
+      {
         "name": "Blog",
         "href": "/blog"
       },
       {
         "name": "About",
         "href": "/about"
-      },
-      {
-        "name": "Source Code",
-        "href": "https://github.com/weijunext/nextjs-starter",
-        "target": "_blank",
-        "rel": "noopener noreferrer nofollow"
-      },
-      {
-        "name": "Pro Version",
-        "href": "https://nexty.dev",
-        "target": "_blank",
-        "rel": "noopener noreferrer"
       }
     ]
   },
