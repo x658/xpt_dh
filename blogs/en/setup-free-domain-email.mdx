@@ -1,0 +1,49 @@
+---
+title: "How to Set Up a Free Private Domain Email with Cloudflare in 10 Minutes"
+description: "A complete step-by-step guide to building a custom-branded private domain email service using Cloudflare Email Routing and Workers with zero server cost."
+slug: "/setup-free-domain-email"
+tags: "email, cloudflare, devops, productivity"
+date: "2026-09-09"
+visible: "published"
+pin: false
+---
+
+In the era of modern personal branding and indie hacking, sending outreach emails from a generic `@gmail.com` or `@outlook.com` address lacks professionalism. However, commercial business email suites (like Google Workspace or Microsoft 365) cost $6 to $18 per user per month.
+
+For developers and founders managing multiple domains, this cost quickly escalates.
+
+Fortunately, by leveraging **Cloudflare Email Routing, Cloudflare Workers, and D1 storage**, you can build a 100% free, production-ready private domain email platform. You can test a live implementation of this system on our dedicated [XPT Mail Service](https://mail.xptdev.com).
+
+---
+
+## Why Serverless Email Infrastructure?
+
+Traditional mail servers require complex configurations: postfix, dovecot, spam filtering, IP reputation warming, and constant patching.
+
+Cloudflare handles the heavy lifting:
+1. **Global Anycast Network**: High reliability and built-in DDoS resistance.
+2. **Zero Maintenance**: Automated MX routing and zero-cost serverless execution.
+3. **Storage Flexibility**: Store received emails in edge databases (Cloudflare D1) or key-value storage (KV).
+
+---
+
+## Step 1: DNS & MX Records Setup
+
+To receive emails on your domain (e.g., `xptdev.com`), you must configure the following Cloudflare Email Routing MX records:
+
+| Record Type | Host | Points To | Priority |
+| :--- | :--- | :--- | :--- |
+| **MX** | `@` | `route1.mx.cloudflare.net` | 10 |
+| **MX** | `@` | `route2.mx.cloudflare.net` | 73 |
+| **MX** | `@` | `route3.mx.cloudflare.net` | 68 |
+
+---
+
+## Step 2: Configure SPF and DKIM Records
+
+To ensure your emails don't end up in spam folders, proper authentication records are required:
+
+### 1. Sender Policy Framework (SPF)
+Add a TXT record to authorize Cloudflare mail servers:
+```text
+v=spf1 include:_spf.mx.cloudflare.net ~all
