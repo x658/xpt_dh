@@ -8,24 +8,18 @@
   "Header": {
     "links": [
       {
-        "name": "博客",
+        "name": "在线工具箱",
+        "href": "https://tools.xptdev.com",
+        "target": "_blank",
+        "rel": "noopener noreferrer"
+      },
+      {
+        "name": "技术博客",
         "href": "/blog"
       },
       {
-        "name": "关于",
+        "name": "关于我们",
         "href": "/about"
-      },
-      {
-        "name": "源码",
-        "href": "https://github.com/weijunext/nextjs-starter",
-        "target": "_blank",
-        "rel": "noopener noreferrer nofollow"
-      },
-      {
-        "name": "高级版",
-        "href": "https://nexty.dev",
-        "target": "_blank",
-        "rel": "noopener noreferrer"
       }
     ]
   },
