@@ -104,9 +104,9 @@
     }
   },
   "Home": {
-    "title": "Next.js Starter",
-    "tagLine": "Next.js 多语言启动模板",
-    "description": "内置多语言支持的 Next.js 16 启动模板，助您快速构建面向全球的出海网站。简洁高效，开箱即用，完全优化的SEO基础架构。"
+    "title": "XPT Dev",
+    "tagLine": "开发者实用工具与出海技术站",
+    "description": "精选 100+ 款纯前端无隐私泄露的开发者工具箱、云原生部署实战与全栈技术博客。"
   },
   "Blog": {
     "title": "博客列表",
