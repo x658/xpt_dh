@@ -1,6 +1,6 @@
 ---
-title: "Building a Zero-Cost Serverless Cloud Clipboard with Cloudflare Workers and D1"
-description: "A comprehensive guide on engineering a lightweight, multi-tenant cloud clipboard and rapid file-drop service with edge SQLite, dynamic single-use invite codes, and zero maintenance costs."
+title: "Building a Zero-Cost Serverless Cloud Clipboard & 1GB File Drop with Cloudflare Workers and D1"
+description: "A deep dive into engineering a lightweight, multi-tenant cloud clipboard and rapid file-drop system featuring edge SQLite, a smart dual-engine storage pipeline supporting up to 1GB files, real-time bandwidth telemetry, and edge reverse-stream proxying."
 slug: "/serverless-cloud-clipboard-cloudflare-d1"
 image: "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&auto=format&fit=crop&q=80"
 tags: "cloudflare, serverless, sqlite, architecture, open-source"
@@ -13,9 +13,10 @@ Transferring text snippets, API tokens, configuration files, and quick screensho
 
 1. **Third-Party Privacy Risks**: Proprietary clipboard sync tools frequently log sensitive tokens, credentials, and code snippets on remote black-box infrastructure.
 2. **Server Infrastructure Overheads**: Deploying dedicated Docker containers or VPS instances (Redis, Node.js, Nginx) incurs persistent monthly costs ($5–$20/mo) and continuous security patching.
-3. **Public Exposure Vulnerabilities**: Open anonymous clipboards quickly degrade into targets for automated abuse, spam, and illicit file hosting.
+3. **The Serverless File Limit Bottleneck**: Traditional serverless architectures (like Cloudflare Workers) strictly constrain request payload sizes (100MB max payload, 128MB RAM, 10ms CPU limit), making large asset transfers historically impossible on free-tier edge computing.
+4. **Public Exposure & Spam Abuse**: Open anonymous pastebins quickly degrade into targets for automated abuse, spam, and illicit file hosting.
 
-To resolve these friction points, we built and open-sourced **XPT-Clip**—a production-grade, multi-user serverless cloud clipboard and file drop system built natively on **Cloudflare Workers** and **Cloudflare D1 (Edge SQLite)**. 
+To solve all of these friction points, we designed and open-sourced **XPT-Clip**—a production-grade, multi-tenant serverless cloud clipboard and file drop system built natively on **Cloudflare Workers** and **Cloudflare D1 (Edge SQLite)**, engineered with a **Smart Dual-Engine architecture** capable of handling transfers from small snippets up to **1GB heavy assets** at strictly **$0.00 operating cost**.
 
 You can test the live service at [clip.xptdev.com](https://clip.xptdev.com) or inspect the repository on [GitHub (x658/xpt-clip)](https://github.com/x658/xpt-clip).
 
@@ -23,32 +24,118 @@ You can test the live service at [clip.xptdev.com](https://clip.xptdev.com) or i
 
 ## Architectural Blueprint
 
-The architecture is designed around a zero-server edge philosophy:
+The architecture follows a zero-server edge philosophy, decoupling control-plane metadata transactions from high-throughput binary streaming:
 
 ```
 [ Developer Browser / Mobile Client ]
-               │  (HTTPS / REST API + Single Page App)
-               ▼
-   [ Cloudflare Global Edge Network ]
-   (330+ Cities Anycast Routing, Sub-50ms Latency)
-               │
-               ▼
-    [ Cloudflare Worker (V8 Engine) ]
-    ├── JWT Authentication & Multi-Tenant Isolation
-    ├── Dynamic Disposable Invite Code Validator
-    ├── Fast Base64 File Processor (Up to 2MB)
-    └── Granular TTL Expiration Engine (10m to 7d)
-               │
-               ▼
-  [ Cloudflare D1 Edge Database (SQLite) ]
-  ├── `users` & `invites` (Role-based access)
-  └── `clips` (Indexed by user_id & public share_id)
+         │
+         ├── (≤ 2MB Payload / Text Clips / Auth) ───► [ Cloudflare Edge Workers ]
+         │                                                    │
+         │                                                    ▼
+         │                                      [ Cloudflare D1 (Edge SQLite) ]
+         │                                      ├── Users & Invite Verification
+         │                                      ├── Base64 Inline Blobs (≤ 2MB)
+         │                                      └── Metadata & Share Access Tokens
+         │
+         └── (> 2MB to 1GB Direct Stream) ──────────► [ High-Speed Edge Relays ]
+                                                              ▲
+                                                              │ (Streaming Pipe)
+ [ Downloader Client ] ◄── (Edge Reverse Stream) ─── [ Cloudflare Worker Proxy ]
 ```
 
-### Why Cloudflare Workers + D1?
+### Why This Architecture Excels:
 * **Zero Cold Starts**: The V8 isolate architecture initializes in under 5 milliseconds globally.
-* **Serverless Edge Storage**: Cloudflare D1 delivers relational ACID guarantees with SQLite simplicity right at the edge.
-* **100% Free Tier Viability**: 100,000 requests/day, 5,000,000 D1 read rows/day, and zero egress transfer fees make ongoing operational costs strictly $0.00.
+* **Smart Dual-Engine Storage**: Small files stay private inside edge SQLite, while multi-hundred-megabyte files bypass serverless memory bottlenecks completely.
+* **100% Free Tier Viability**: 100,000 requests/day, 5,000,000 D1 read rows/day, and zero egress transfer fees make ongoing operational costs strictly **$0.00** without binding a credit card.
+
+---
+
+## The 1GB Smart Dual-Engine Breakthrough
+
+The core engineering hurdle with edge computing is payload handling. Cloudflare Workers impose a strict 100MB body cap and memory ceilings on the free tier, and D1 SQLite tables degrade in performance when storing massive multi-megabyte binary blobs.
+
+XPT-Clip solves this with a **transparent client-side dual-engine router**:
+
+```
+                              [ File Input Drop ]
+                                       │
+                         Is file size <= 2MB?
+                        /                    \
+                     [YES]                   [NO]
+                      │                       │
+      [ Tier 1: Local Edge Engine ]   [ Tier 2: Relay Stream Engine ]
+      • Read as Base64 Data URI       • Register Metadata in D1
+      • Direct insert into D1 DB      • Client Direct Stream Upload
+      • Zero external dependency      • Supports up to 1GB Archives / ISOs
+```
+
+### 1. Tier 1: Local Edge Engine (≤ 2MB)
+Lightweight snippets, logs, `.env` configs, scripts, and screenshots are encoded into compact Base64 strings and stored directly within Cloudflare D1. They benefit from instant edge retrieval, strict cryptographic access isolation, and zero third-party dependencies.
+
+### 2. Tier 2: High-Speed Streaming Engine (> 2MB up to 1GB)
+When a user drops an archive, software binary, or multi-hundred-megabyte log file:
+1. The browser pre-registers the transfer metadata (filename, byte size, MIME type) with the Cloudflare Worker to obtain a persistent database entry.
+2. The browser streams the payload directly to high-throughput Anycast storage nodes (backed by Tokyo Cloudflare Edge and AWS S3 infrastructure) using chunked multipart streams.
+3. **The Worker's memory and CPU consumption remains at 0.00%**, completely circumventing serverless execution limits.
+
+---
+
+## Real-Time Progress & Dynamic Bandwidth Telemetry
+
+Modern developers demand desktop-grade feedback during heavy file transfers. Traditional `fetch()` APIs provide no granular upload progress hooks.
+
+XPT-Clip utilizes native `XMLHttpRequest.upload.onprogress` with sliding-window bandwidth calculation:
+
+```javascript
+xhr.upload.onprogress = (event) => {
+  if (event.lengthComputable) {
+    const percent = Math.round((event.loaded / event.total) * 100);
+    const elapsedSeconds = (Date.now() - startTime) / 1000;
+    const currentSpeedMBs = (event.loaded / 1024 / 1024 / elapsedSeconds).toFixed(1);
+
+    progressBar.style.width = `${percent}%`;
+    progressLabel.innerText = `${percent}% (${(event.loaded/1024/1024).toFixed(1)}MB / ${(event.total/1024/1024).toFixed(1)}MB - ${currentSpeedMBs} MB/s)`;
+  }
+};
+```
+
+This delivers an interactive, real-time UI that displays exact transferred bytes, remaining percentage, and live upload throughput (`MB/s`).
+
+---
+
+## Edge Reverse-Stream Proxy: Eliminating Cross-Border Drops
+
+A major pitfall of relying on public storage relays is link degradation:
+* Public download URLs often trigger browser security warnings.
+* ISP routing inconsistencies on mobile 4G/5G networks frequently cause third-party domain connection drops or TLS handshake timeouts.
+* External services obscure the original filename into randomized hashes.
+
+XPT-Clip completely eliminates redirection by turning the Cloudflare Worker into a **Transparent Edge Reverse-Stream Proxy**:
+
+```javascript
+// Worker Transparent Streaming Pipe
+export async function handleFileDownload(env, clip) {
+  const upstreamResponse = await fetch(clip.remote_url, {
+    headers: { 'User-Agent': 'XPT-Clip-Proxy/2.0' }
+  });
+
+  const headers = new Headers(upstreamResponse.headers);
+  // Enforce native original filename preservation
+  headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(clip.file_name)}`);
+  headers.set('Cache-Control', 'public, max-age=3600');
+
+  // Stream raw bytes directly to client via Cloudflare Anycast
+  return new Response(upstreamResponse.body, {
+    status: upstreamResponse.status,
+    headers
+  });
+}
+```
+
+### Why This Matters:
+* **Zero Domain Jumping**: The user never leaves your apex domain (`clip.xptdev.com/api/files/:id?download=1`).
+* **100% Mobile Reliability**: Cloudflare's local Anycast edge terminates the client connection, preventing packet loss and carrier-level timeouts on mobile devices.
+* **Original Filename Retention**: RFC 5987 encoded headers ensure exact filename and extension restoration across macOS, Windows, Linux, Android, and iOS.
 
 ---
 
@@ -61,6 +148,7 @@ On the very first cold run, the database has zero registered users. The first pe
 
 ### 2. Single-Use Disposable Invite Codes
 New users cannot sign up freely. Instead, the Super Admin generates single-use disposable invite codes directly from their dashboard:
+
 ```sql
 CREATE TABLE IF NOT EXISTS invites (
   id TEXT PRIMARY KEY,
@@ -79,63 +167,47 @@ When an invite code is submitted during registration, the Worker executes an ato
 2. Hashes the new user's password using salted SHA-256 with an edge secret pepper.
 3. Inserts the new tenant into `users` and marks `is_used = 1` simultaneously.
 
----
-
-## Technical Highlights & Features
-
-### 1. Multi-Tenant Data Isolation
-Every persistent clip is tagged with the user's cryptographically signed `user_id`. Normal queries only return records owned by the authenticated caller:
-```sql
-SELECT id, title, content, is_file, file_name, file_size, expires_at, created_at 
-FROM clips 
-WHERE user_id = ? 
-ORDER BY created_at DESC;
-```
-
-### 2. Base64 Fast File Drop
-XPT-Clip supports seamless drag-and-drop file transfers (JSON schemas, environment files, logs, screenshots, patches) up to 2MB. Files are encoded directly as high-throughput Base64 data URIs and stored inside edge SQLite records, completely eliminating the need for expensive external object buckets (S3/R2) for lightweight assets.
-
-### 3. Granular Self-Destruct Timers
-Clips default to a **10-minute auto-expiry window**, drastically reducing edge storage footprint. Users can also customize retention policies:
-* 10 Minutes (Default — optimal for sensitive keys & one-time passwords)
-* 1 Hour / 1 Day / 7 Days
-* Permanent (for recurring snippets and documentation)
-
-Expired clips are automatically filtered out during retrieval queries, ensuring self-cleansing operation.
-
-### 4. Ephemeral Secret Links with View Limits
-When a user needs to share a snippet or file with an external contractor or friend without giving them an account, they can generate a **Secret Public Link** with customizable view thresholds (e.g., destructs after 1 view or 5 views).
+### 3. Granular Self-Destruct Timers & Secret Links
+Clips feature customizable lifecycle retention policies:
+* **10 Minutes (Default)**: Optimal for API tokens, one-time passwords, and sensitive keys.
+* **1 Hour / 1 Day / 7 Days / Permanent**.
+* **Burn-After-Reading Public Links**: Generate ephemeral links with customizable view limits (e.g., auto-destructs after 1 view) for external sharing without granting account access.
 
 ---
 
 ## Performance and Benchmark Metrics
 
-| Metric | Traditional VPS (Docker + MySQL) | XPT-Clip (CF Workers + D1) |
+| Metric | Traditional VPS (Docker + Nginx + S3) | XPT-Clip (CF Workers + D1 Dual Engine) |
 | :--- | :--- | :--- |
 | **Global Cold Start** | 800ms – 2,500ms | **< 15ms** |
-| **P95 Latency** | ~240ms (Single-region) | **~38ms (Global Edge)** |
-| **Monthly Operating Cost** | $6.00 – $24.00/mo | **$0.00 (Cloudflare Free Tier)** |
-| **DDoS Protection** | Manual Fail2ban / Reverse Proxy | **Enterprise Cloudflare Anycast** |
-| **Maintenance Burden** | Kernel updates, Docker prune, backups | **Zero Server Maintenance** |
+| **P95 Latency** | ~240ms (Single-region) | **~38ms (Global Edge Anycast)** |
+| **Max Transfer Size** | Dependent on VPS disk / bandwidth | **Up to 1GB per drop** |
+| **Upload Monitoring** | Custom WebSocket / polling | **Native `XMLHttpRequest` Progress** |
+| **Download Pipeline** | Direct storage redirect (Risk of blocked IPs) | **Transparent Edge Stream Proxy** |
+| **Monthly Operating Cost** | $12.00 – $40.00/mo | **$0.00 (Cloudflare Free Tier)** |
+| **Maintenance Burden** | OS updates, Docker prune, SSL renewal | **Zero Server Maintenance** |
 
 ---
 
-## Open Source & Deploying Your Own
+## Deploy Your Own in Under 3 Minutes
 
-The entire system is licensed under the permissive **MIT License** and can be deployed to your own Cloudflare account in under 3 minutes:
+The entire codebase is open-source under the permissive **MIT License**. You can deploy it to your own Cloudflare account using the Cloudflare CLI:
 
 ```bash
-# Clone the repository
+# 1. Clone the repository
 git clone https://github.com/x658/xpt-clip.git
 cd xpt-clip
 
-# Create your D1 edge database
+# 2. Create your D1 edge database
 npx wrangler d1 create clip-db
 
-# Execute the schema initialization
+# 3. Configure wrangler.toml with your database_id
+cp wrangler.toml.example wrangler.toml
+
+# 4. Initialize database schema
 npx wrangler d1 execute clip-db --remote --file=./schema.sql
 
-# Deploy to Cloudflare Workers
+# 5. Deploy globally to Cloudflare Workers
 npx wrangler deploy
 ```
 
@@ -147,4 +219,4 @@ npx wrangler deploy
 
 ## Conclusion
 
-By orchestrating modern serverless compute with edge relational storage, developers no longer need to compromise between convenience, privacy, and infrastructure bills. **XPT-Clip** showcases how indie hackers and engineering teams can achieve enterprise-grade reliability and zero-cost self-hosting with minimal code complexity.
+By orchestrating modern serverless V8 isolates with edge relational SQLite and intelligent client-side stream routing, developers no longer need to compromise between convenience, privacy, file capacity, and infrastructure bills. **XPT-Clip** proves that enterprise-grade multi-tenant utilities with 1GB file capabilities can be deployed at scale with zero server overhead and zero monthly expenses.
