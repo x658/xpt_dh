@@ -140,5 +140,10 @@
     "submitting": "提交中...",
     "successMessage": "感谢您的提交！我们会尽快审核。",
     "errorMessage": "出了点问题，请重试。"
+  },
+  "FeaturedArticles": {
+    "title": "最新深度技术专栏",
+    "description": "探索实战架构设计、Serverless 边缘计算与现代 Web 安全防御最佳实践。",
+    "viewAll": "浏览全部技术文章 →"
   }
 }

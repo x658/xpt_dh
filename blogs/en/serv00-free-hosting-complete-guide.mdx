@@ -1,0 +1,113 @@
+---
+title: "The Complete Geek's Guide to Serv00 Free Hosting: Specs, Practical Use Cases, and Auto-Keepalive"
+description: "A comprehensive guide to leveraging Poland's popular Serv00 free hosting (512MB RAM, 3GB SSD, dedicated IPv4, FreeBSD): daemon permissions, Uptime Kuma monitoring, Memos notes, and zero-port Cloudflare Tunnels."
+slug: "/serv00-free-hosting-complete-guide"
+image: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop&q=80"
+tags: "serv00, free-hosting, freebsd, devops, automation, cloudflare"
+date: "2026-10-10"
+visible: "published"
+pin: false
+---
+
+In an era of rising cloud infrastructure costs, **Serv00**—offered by veteran Polish hosting provider MyDevil—has earned legendary status among indie hackers and homelab enthusiasts as one of the most generous permanent free tier environments available.
+
+While officially categorized as shared virtual hosting, its unique feature set—**SSH shell access, dedicated public IPv4/IPv6, custom port allocation, persistent background process execution, and 16 remote-accessible databases**—makes it function remarkably close to a lightweight VPS.
+
+This guide provides a comprehensive walkthrough of Serv00's architecture, high-value deployment patterns, and essential automated keepalive workflows.
+
+---
+
+## 1. Hardware Specifications & Platform Quotas
+
+* **Compute**: 512 MB physical RAM, FreeBSD operating system (`freebsd-amd64`).
+* **Storage**: 3 GB high-speed SSD disk space with unmetered monthly egress bandwidth.
+* **Networking & Ports**: Native dedicated IPv4 + IPv6 addresses with up to **3 customizable open ports** (TCP/UDP) configured via the DevilWEB control panel.
+* **Runtimes**: Pre-installed support for PHP (5.6 through 8.3), Node.js (with multi-version management), Python, Go, Rust, and Java.
+* **Databases**: Create up to **16 distinct database instances** across MySQL, PostgreSQL, and MongoDB, complete with external remote access toggles.
+
+---
+
+## 2. Essential Initial Setup: Enable Background Daemons
+
+By default, newly provisioned Serv00 accounts enforce an aggressive idle process reaper. Any custom processes started in your SSH session will be terminated upon logout unless explicitly permitted.
+
+### Enabling "Run your own applications"
+1. Log into your **DevilWEB** management dashboard.
+2. In the left navigation menu, navigate to **`Additional services`**.
+3. Locate the setting **`Run your own applications`**.
+4. Change the toggle from `Disabled` to **`Enabled`**.
+
+Enabling this permission allows background daemons, PM2 workers, and compiled binaries to remain active continuously.
+
+---
+
+## 3. Top 4 Practical Deployment Scenarios
+
+### 1. 24/7 Availability Monitoring with Uptime Kuma
+Leverage Serv00's native Node.js runtime and European network presence to host a private **Uptime Kuma** status dashboard:
+* Continuously ping your web applications, API health checks, and SSL certificates around the clock.
+* Receive instant alerts via Telegram Bot, Discord, or Email whenever an endpoint degrades or encounters HTTP 5xx errors.
+* Consumes merely 60–80 MB of RAM, leaving plenty of capacity for secondary utilities.
+
+### 2. Ephemeral Thought Capture with Memos
+* **Memos** is a privacy-first, lightweight knowledge capture and micro-blogging engine written in Go.
+* Data is stored locally in SQLite or a native Serv00 MySQL instance, featuring full Markdown support, multi-tag hierarchies, and media attachments.
+* Works seamlessly as a Progressive Web App (PWA) when pinned to your mobile home screen.
+
+### 3. Zero-Port Penetration via Cloudflare Tunnels
+Deploying web services on shared hosts traditionally requires navigating firewall port restrictions and SSL certificate generation.
+**The modern gold standard is pairing Serv00 with Cloudflare Argo Tunnels**:
+* Download a pre-compiled `cloudflared` binary built for FreeBSD directly into your user home directory.
+* Run internal services on localhost (e.g., `127.0.0.1:3000`) **without exposing public ports on the Serv00 firewall**.
+* Map the tunnel directly to your custom domain (e.g., `memos.xptdev.com`), instantly gaining Cloudflare Anycast CDN acceleration, automatic wildcard SSL, and DDoS mitigation.
+
+### 4. Free Remote Cloud Databases (MySQL / PostgreSQL)
+Developers building prototypes or background crawlers often need a remote SQL database without paying cloud provider minimum instance fees.
+* Spin up a database instance in DevilWEB and enable the "Remote access" checkbox.
+* Connect directly from your local development tools (DBeaver, VS Code, or backend servers) with zero ongoing hosting costs.
+
+---
+
+## 4. The Anti-Deletion Keepalive Workflow
+
+> ⚠️ **Serv00 Terms of Service Requirement**: Accounts must register an active SSH or control panel login **at least once every 90 days**. Accounts exceeding 90 days of continuous inactivity are automatically scheduled for permanent deletion.
+
+To prevent accidental data loss, automate your login keepalive using **GitHub Actions**.
+
+Create `.github/workflows/serv00-keepalive.yml` in your GitHub repository:
+
+```yaml
+name: Serv00 Auto KeepAlive
+
+on:
+  schedule:
+    # Executes an automated SSH handshake every Monday at 08:00 UTC
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+jobs:
+  ssh-keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Authenticate and Touch Host
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERV00_HOST }}     # e.g., s1.serv00.com
+          username: ${{ secrets.SERV00_USER }} # Your Serv00 username
+          password: ${{ secrets.SERV00_PASS }} # Your login password
+          port: 22
+          script: |
+            echo "Keepalive session ping at $(date)"
+            uptime
+```
+
+Store your credentials under repository Secrets to ensure your host remains permanently active without manual intervention.
+
+---
+
+## Important Operational Caveats
+
+* **Strict Prohibition on Proxies**: Do not deploy public VPN tunnels or high-concurrency proxy nodes. Outbound traffic is actively audited, and policy violations lead to immediate account termination.
+* **FreeBSD OS Architecture**: Remember that Serv00 runs **FreeBSD**, not Debian or Ubuntu. Standard Linux package managers (`apt`, `yum`) do not exist. When compiling Go or Rust applications on your workstation, target `GOOS=freebsd GOARCH=amd64` before uploading binaries.
+
+When treated within its resource boundaries, Serv00 serves as an exceptionally capable, zero-cost development sandbox for indie developers.

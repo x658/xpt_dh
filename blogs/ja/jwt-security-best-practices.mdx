@@ -1,0 +1,24 @@
+---
+title: "JWT（JSON Web Token）入門：構造・クレーム・セキュリティ脆弱性とベストプラクティス"
+description: "RFC 7519 に基づくJSON Web Token（JWT）の基本構造、Noneアルゴリズム攻撃や鍵混同攻撃の防御策、クライアント側での安全な解析方法。"
+slug: "/jwt-security-best-practices"
+image: "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80"
+tags: "jwt,セキュリティ,web開発,認証認可,ベストプラクティス"
+date: "2026-09-09"
+visible: "published"
+pin: false
+---
+
+JSON Web Token（JWT）は、現代のマイクロサービスやSPAにおいてステートレス認証のデファクトスタンダードとなっています。
+
+ドット（`.`）で区切られた3つの要素（Header、Payload、Signature）から構成され、URLセーフなJSON形式でクレームをやり取りします。
+
+---
+
+## 注意すべきセキュリティリスク
+
+1. **None アルゴリズム攻撃**: 署名検証ライブラリが `alg: none` を許可していると、攻撃者が未署名の改ざんトークンで管理者権限を詐取可能になります。アルゴリズムは常にホワイトリスト形式で厳格に固定してください。
+2. **鍵の混同攻撃（Key Confusion）**: RS256用の公開鍵をHS256の共通鍵として検証させてしまう実装ミスを防ぎます。
+3. **Payload の平文露出**: JWTは暗号化（Encryption）ではなく単なるBase64URLエンコードです。パスワードや機密データをPayloadに含めてはいけません。
+
+安全なデバッグには、ブラウザローカルで安全に解析できる [XPT Dev JWT デコーダー](https://tools.xptdev.com/#/jwt-parser) をご利用いただけます。

@@ -1,0 +1,26 @@
+---
+title: "Oracle Cloud Always Free 完全攻略：4コア24GB ARM、課金トラップの回避、1Panel によるモダン運用"
+description: "Oracle Cloud Infrastructure (OCI) の永久無料枠をフル活用するための実践ガイド：PAYGアップグレードによるインスタンス回収回避、ストレージ課金対策、ファイアウォール設定とDocker運用。"
+slug: "/oracle-cloud-always-free-arm-guide"
+image: "https://images.unsplash.com/photo-1607799279861-4dd421887fb3?w=800&auto=format&fit=crop&q=80"
+tags: "oracle-cloud,vps,インフラ,クラウド,1panel,docker"
+date: "2026-10-13"
+visible: "published"
+pin: false
+---
+
+**Oracle Cloud Infrastructure（OCI）** の「Always Free（永久無料）」枠は、最大4 OCPU・24GB RAMのARMインスタンス（Ampere A1）や200GBのSSDブロックストレージを提供しており、個人開発者にとって最高峰のクラウド環境です。
+
+---
+
+## 予期せぬ課金を防ぐ重要ポイント
+
+1. **PAYG（従量課金）へのアップグレード**:
+   * 無料アカウントは7日間のアイドル状態でインスタンスが強制回収される対象となりますが、PAYGにアップグレードすることで**アイドル回収の対象外**となります。
+   * 無料枠内（月間3,000 OCPU時間、18,000 GB時間）であれば、PAYGでも請求額は $0.00 のままです。
+2. **ブートボリューム（OSディスク）の残留に注意**:
+   * インスタンス削除時に「ブートボリュームを完全に削除する」にチェックを入れないと、ディスクが残存して200GB制限を超え、課金が発生します。
+3. **二重ファイアウォールの解除**:
+   * OCI管理画面のVCNセキュリティリスト（Ingress Rules）の開放と、Linuxホスト内の `iptables -F` によるパケット許可の両方が必要です。
+4. **1Panel の導入**:
+   * 12GB以上の大容量メモリを活かし、Dockerベースの直感的なオープンソース運用パネル「1Panel」を導入することで、各種サービスをワンクリックで安全に構築できます。

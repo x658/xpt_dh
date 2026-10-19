@@ -140,5 +140,10 @@
     "submitting": "Submitting...",
     "successMessage": "Thank you! Your submission has been received. We'll review it shortly.",
     "errorMessage": "Something went wrong. Please try again."
+  },
+  "FeaturedArticles": {
+    "title": "Featured Technical Guides",
+    "description": "Explore in-depth architecture designs, serverless edge computing, and modern developer security solutions.",
+    "viewAll": "View All Articles →"
   }
 }

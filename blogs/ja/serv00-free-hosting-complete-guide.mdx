@@ -1,0 +1,21 @@
+---
+title: "ポーランドの無料サーバー Serv00 完全活用ガイド：スペック・用途・GitHub Actions による自動延命"
+description: "512MB RAM、3GB SSD、専用IPv4、FreeBSDを備えた老舗無料ホスティング Serv00 の実践的活用法と、90日ルールを回避する自動化スクリプトの設定方法。"
+slug: "/serv00-free-hosting-complete-guide"
+image: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop&q=80"
+tags: "serv00,無料サーバー,freebsd,インフラ,自動化,cloudflare"
+date: "2026-10-10"
+visible: "published"
+pin: false
+---
+
+**Serv00**（ポーランドの老舗ホスティング企業 MyDevil 系列）は、無料でありながらSSHアクセス、専用IPv4/IPv6、カスタムポート開放、バックグラウンドプロセスの常駐が可能な、エンジニアにとって非常に魅力的な環境です。
+
+---
+
+## スペックと利用規約の重要ポイント
+
+* **リソース**: 512MB RAM、3GB SSD、転送量無制限、FreeBSD OS。
+* **常駐プロセスの許可**: 管理パネル（DevilWEB）の `Additional services` > `Run your own applications` を `Enabled` に変更する必要があります。
+* **90日ログイン制限**: アカウント削除を防ぐため、90日に1回以上のSSHまたはパネルログインが必要です。GitHub Actions による週1回の定期SSH接続で自動延命が可能です。
+* **おすすめ用途**: Uptime Kuma による自社サイト監視、Memos メモサーバー、Cloudflare Tunnel によるポート非公開での安全なWeb公開。

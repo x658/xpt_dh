@@ -1,0 +1,113 @@
+---
+title: "波兰免费虚拟主机 Serv00 极客玩法全景指南：架构、服务部署与 GitHub Actions 自动免死保活"
+description: "深度拆解老牌免费主机 Serv00（512MB RAM、3GB SSD、独立 IPv4、FreeBSD）的进阶用法：常驻进程配置、Uptime Kuma 监控、Memos 私有笔记与 Cloudflare 隧道零端口穿透实战。"
+slug: "/serv00-free-hosting-complete-guide"
+image: "https://images.unsplash.com/photo-1544197150-b99a580bb7a8?w=800&auto=format&fit=crop&q=80"
+tags: "serv00,免费主机,freebsd,运维部署,自动化脚本,cloudflare"
+date: "2026-10-10"
+visible: "published"
+pin: false
+---
+
+在云服务器日益昂贵的今天，来自波兰老牌主机商 MyDevil 旗下的 **Serv00**（官方宣称提供“十年免费托管”）在极客和独立开发者群体中被誉为**“最强免费神机”**。
+
+虽然官方将其定义为虚拟主机（Virtual Shared Hosting），但由于它**原生提供了 SSH 终端登录、独立 IPv4/IPv6、自定义端口开放、后台常驻守护进程、以及免费的 MySQL/PostgreSQL/MongoDB 数据库**，其实际灵活性极其接近一台轻量级 VPS。
+
+本文将为你全面拆解 Serv00 的底层架构、核心玩法以及最重要的免死保活自动化配置。
+
+---
+
+## 一、 Serv00 硬件资源与技术参数速查
+
+* **计算资源**：512 MB 物理内存，FreeBSD 操作系统（架构为 `freebsd-amd64`）；
+* **存储容量**：3 GB 高速 SSD 空间，无限月度流量；
+* **网络与端口**：原生独立 IPv4 + IPv6，允许在 Web 控制面板（DevilWEB）中自定义申请 **3 个对外开放端口**（TCP/UDP）；
+* **运行时环境**：原生内置 PHP (5.6 ~ 8.3)、Node.js (支持多版本切换)、Python、Go、Rust、Java 等编译与运行环境；
+* **数据库配额**：单个账号可免费开辟多达 **16 个独立数据库**（支持 MySQL、PostgreSQL 和 MongoDB），且**允许开启外网远程直连访问（Remote Access）**。
+
+---
+
+## 二、 关键前置配置：解除系统常驻限制
+
+刚注册成功的 Serv00 账号，系统默认开启了空闲进程查杀策略。如果不做修改，你在终端启动的后台服务过一会儿就会被系统自动 SIGKILL。
+
+### 必须开启的“应用常驻权限”
+1. 登录 Web 控制面板（DevilWEB）；
+2. 在左侧功能导航栏找到 **`Additional services`**（附加服务）；
+3. 找到 **`Run your own applications`**（运行自定义应用程序）选项；
+4. 将其状态从默认的 `Disabled` 切换为 **`Enabled`**。
+
+只有开启此选项，你的 Node.js、Go、Python 守护进程才拥有在后台持久运行的合法权限。
+
+---
+
+## 三、 四大高价值极客实战玩法
+
+### 1. 搭建全天候网站监控站（Uptime Kuma）
+利用 Serv00 的欧洲原生网络与 Node.js 环境，部署轻量级服务监控大屏 **Uptime Kuma**：
+* 7×24 小时不间断对你的个人网站、API 接口和 SSL 证书进行状态探活；
+* 一旦主站发生 HTTP 500、DNS 解析失败或证书即将过期，立刻通过 Telegram Bot 或邮件向你推送报警；
+* 仅占用约 60~80MB 内存，对 512MB 的系统毫无负担。
+
+### 2. 部署极简轻量笔记（Memos 灵感胶囊）
+* **Memos** 是基于 Go 语言编写的单文件个人知识库与灵感碎片记录系统（类似自建的 Flomo 或私人朋友圈）；
+* 数据直接保存在本地 SQLite 或 Serv00 自带的 MySQL 数据库中，支持 Markdown、多标签管理与图片上传；
+* 在手机端支持 PWA 一键“添加到主屏幕”，秒变私密的原生笔记 App。
+
+### 3. 搭配 Cloudflare Argo Tunnel（无痛穿透与免配置 SSL）
+在虚拟主机上部署 Web 项目，最痛苦的就是申请端口、配置 SSL 证书和防止 IP 暴露。
+**目前的顶级玩法是结合 Cloudflare Tunnel**：
+* 在 Serv00 用户目录下直接下载针对 FreeBSD 编译的轻量级 `cloudflared` 二进制客户端；
+* 无论你在 Serv00 内部监听哪个本地端口（如 `127.0.0.1:3000`），**完全不需要在 Serv00 面板对外开放端口，也无需配置证书**；
+* 直接一条加密隧道穿透到你的自定义域名（如 `memos.xptdev.com`），不仅能享受到 Cloudflare 全球 Anycast CDN 加速，还能自动获得官方免费泛域名 HTTPS 与源站 IP 隐藏保护！
+
+### 4. 免费的云端开发数据库（MySQL / PostgreSQL）
+许多开发者在本地做原型验证或写小爬虫时，不想在本地电脑常驻跑 MySQL，又不想花钱买各大云厂商高昂的云数据库。
+* 在 Serv00 面板直接一键创建数据库，并勾选允许外网远程访问；
+* 即可获得一个持久化、免费、跨网络通用的个人开发专用云数据库。
+
+---
+
+## 四、 必备免死保活：防删号自动化工作流
+
+> ⚠️ **Serv00 官方强制条款**：用户必须**每 3 个月至少登录一次 SSH 终端或 Web 控制面板**。如果连续 90 天未检测到任何登录行为，系统将视为放弃账号并自动执行物理级删除！
+
+为了防止因工作繁忙遗忘导致数据丢失，推荐使用 **GitHub Actions** 配置免死自动保活任务。
+
+在你的个人 GitHub 仓库中创建 `.github/workflows/serv00-keepalive.yml`：
+
+```yaml
+name: Serv00 Auto KeepAlive
+
+on:
+  schedule:
+    # 每周一上午 8:00 (UTC) 自动执行一次 SSH 握手
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+jobs:
+  ssh-keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH Connect and Touch System
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERV00_HOST }}     # 例如: s1.serv00.com
+          username: ${{ secrets.SERV00_USER }} # 你的 Serv00 用户名
+          password: ${{ secrets.SERV00_PASS }} # 你的登录密码
+          port: 22
+          script: |
+            echo "Keepalive session ping at $(date)"
+            uptime
+```
+
+通过将账号与密码存放在 GitHub Secrets 中，自动化机器人每周会自动与你的 Serv00 服务器建立一次合法的 SSH 交互，彻底解除 90 天回收的后顾之忧。
+
+---
+
+## 避坑总结
+
+* **严禁滥用代理**：不要在上面搭建公开的翻墙节点或大流量代理工具，官方针对高并发网络探测极其严厉，一经发现直接永久封号。
+* **架构兼容性注意**：Serv00 底层为 **FreeBSD** 而非常规 Linux（Ubuntu/Debian），没有 `apt` 或 `yum` 命令。部署 Go 或 Rust 程序时，务必在本机通过交叉编译目标 `GOOS=freebsd GOARCH=amd64` 生成对应的二进制包再上传执行。
+
+只要善用其特性，Serv00 绝对是每位极客武器库中不可多得的高性价比轻量利器。

@@ -1,0 +1,23 @@
+---
+title: "堅牢な Webhook セキュリティ設計：HMAC-SHA256署名検証・リプレイ攻撃防御・冪等性処理"
+description: "本番レベルのWebhookシステムにおけるセキュリティ対策：HMAC署名検証、タイミング攻撃を防ぐ定数時間比較、タイムスタンプによるリプレイ防御、重複排除の実践。"
+slug: "/webhook-security-and-hmac-verification"
+image: "https://images.unsplash.com/photo-1563986768609-322da13575f3?w=800&auto=format&fit=crop&q=80"
+tags: "セキュリティ,webhook,hmac,nodejs,typescript,アーキテクチャ"
+date: "2026-09-09"
+visible: "published"
+pin: false
+---
+
+モダンなWeb開発において、WebhookはStripeやGitHubなどの外部サービスからリアルタイムにイベントを受信するための標準プロトコルです。
+
+しかし、適切な署名検証が行われていないエンドポイントは、ペイロード偽造やリプレイ攻撃の格好の標的となります。
+
+---
+
+## 4つの必須セキュリティ原則
+
+1. **HMAC-SHA256 共有シークレット署名**: 送信者はペイロード全体と共有キーからHMACを算出しヘッダーに付与。受信者は同じロジックで再計算して検証。
+2. **定数時間比較（Timing-Safe Equal）**: `===` による比較を避け、Node.jsの `crypto.timingSafeEqual()` を使用してタイミング攻撃を完全遮断。
+3. **タイムスタンプによるリプレイ攻撃防御**: リクエストヘッダーに含まれるUNIX時間とサーバー時間の差が±300秒（5分）以内であることを強制。
+4. **イベントIDに基づく冪等性（Idempotency）**: ネットワーク再試行による二重処理を防止するため、キャッシュ等でイベントIDを一意管理。
