@@ -1,0 +1,88 @@
+---
+title: Cloudflare TunnelとZero Trustによる安全なローカル公開とアクセス制御完全実践
+description: ポート開放や固定グローバルIPを不要にし、Cloudflare TunnelとZero Trust Accessを組み合わせたセキュアなリモートアクセス環境を構築する。
+slug: /cloudflare-tunnel-zero-trust-guide
+tags: cloudflare,security,tunnel,devops,networking,zero-trust
+date: 2026-10-19
+visible: published
+pin: false
+---
+
+社内管理画面、家庭内ラボ（Homelab）、開発用サーバーを外部から安全に利用したい場合、従来のルーターによるポート転送（Port Forwarding）や DDNS に頼る運用は大きなセキュリティリスクを伴います。
+
+公にポートを公開すると、攻撃ボット（Shodan等）による常時スキャンや総当たり攻撃に晒されるためです。
+
+**Cloudflare Tunnel** と **Cloudflare Zero Trust** を導入することで、サーバーから Cloudflare エッジへのアウトバウンド暗号化トンネルを確立し、インバウンドポートを完全に遮断したまま安全にサービスを公開できます。
+
+---
+
+## 1. 接続アーキテクチャの比較
+
+```text
+【従来のポート転送方式】
+インターネット ---> ルーター（80/443 開放） ---> 内部サーバー（外部スキャンに晒される）
+
+【Cloudflare Zero Trust 方式】
+インターネット ---> Cloudflare エッジ（DDoS保護 + 多要素認証）
+                              ^
+                              | （サーバー側から安全な外向きトンネルを確立）
+                       内部サーバー（インバウンドポート全閉鎖・cloudflared 稼働）
+```
+
+---
+
+## 2. セットアップ手順
+
+### ステップ 1: `cloudflared` のインストール
+
+Debian / Ubuntu の場合:
+
+```bash
+# 公式パッケージのダウンロードとインストール
+curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb -o cloudflared.deb
+sudo dpkg -i cloudflared.deb
+cloudflared --version
+```
+
+### ステップ 2: トンネルの作成とルーティング設定
+
+```bash
+# 認証
+cloudflared tunnel login
+
+# トンネル作成
+cloudflared tunnel create homelab-prod
+```
+
+設定ファイル `/etc/cloudflared/config.yml` を作成します：
+
+```yaml
+tunnel: 3f1a2b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c
+credentials-file: /etc/cloudflared/3f1a2b3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c.json
+
+ingress:
+  - hostname: nas.xptdev.com
+    service: http://127.0.0.1:5000
+  - hostname: admin.xptdev.com
+    service: http://127.0.0.1:8080
+  - service: http_status:404
+```
+
+### ステップ 3: サービスの起動
+
+```bash
+# DNS レコードの登録
+cloudflared tunnel route dns homelab-prod nas.xptdev.com
+cloudflared tunnel route dns homelab-prod admin.xptdev.com
+
+# systemd デーモンとして登録・起動
+sudo cloudflared service install
+sudo systemctl start cloudflared
+sudo systemctl enable cloudflared
+```
+
+---
+
+## 3. Zero Trust Access による認証の追加
+
+さらに Cloudflare 管理画面の **Zero Trust -> Access -> Applications** で該当ドメインを登録し、メール OTP 認証や Google ログインポリシーを適用することで、未認証のアクセスをエッジで完全に遮断できます。

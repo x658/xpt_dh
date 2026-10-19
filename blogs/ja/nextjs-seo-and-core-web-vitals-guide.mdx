@@ -1,0 +1,50 @@
+---
+title: Next.js 16における究極のSEO対策とCore Web Vitals最適化ガイド
+description: App Router generateMetadata の完全活用、動的 OpenGraph 画像生成、JSON-LD 構造化データと LCP/INP 指標の極限チューニング。
+slug: /nextjs-seo-and-core-web-vitals-guide
+tags: nextjs,seo,web-vitals,frontend,performance,react
+date: 2026-10-19
+visible: published
+pin: false
+---
+
+世界規模で利用される Web サービスや個人開発プロダクトにおいて、SEO（検索エンジン最適化）と Core Web Vitals（主要ウェブ指標）はトラフィック獲得の成否を分ける決定的な要素です。
+
+Next.js 16 の App Router と React Server Components（RSC）を適切に活用することで、リッチな UI を維持しながら Google Lighthouse 満点水準のパフォーマンスを実現できます。
+
+---
+
+## 1. App Router Metadata の設計
+
+Next.js では、型安全な静的・動的メタデータ API が提供されています。多言語サイトでの正規化 URL（Canonical URL）と hreflang の設定例：
+
+```typescript
+export async function generateMetadata({ params }): Promise<Metadata> {
+  const { locale, slug } = await params;
+  const post = await getPostBySlug(slug, locale);
+
+  const siteUrl = "https://xptdev.com";
+  const canonicalUrl = `${siteUrl}/${locale}/blog/${slug}`;
+
+  return {
+    title: `${post.title} | XPT Dev`,
+    description: post.description,
+    alternates: {
+      canonical: canonicalUrl,
+      languages: {
+        en: `${siteUrl}/en/blog/${slug}`,
+        zh: `${siteUrl}/zh/blog/${slug}`,
+        ja: `${siteUrl}/ja/blog/${slug}`,
+        "x-default": `${siteUrl}/en/blog/${slug}`,
+      },
+    },
+  };
+}
+```
+
+---
+
+## 2. Core Web Vitals 最適化のポイント
+
+* **LCP（Largest Contentful Paint）の短縮**: `next/font` によるフォント自動最適化と、ファーストビュー画像に対する `priority` 属性の付与で初期描画を高速化します。
+* **INP（Interaction to Next Paint）の改善**: クライアントサイドでの重いスクリプト実行を Web Worker やトランジションに逃がし、メインスレッドの占有を防ぎます。

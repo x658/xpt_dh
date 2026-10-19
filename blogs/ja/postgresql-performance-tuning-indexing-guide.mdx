@@ -1,0 +1,66 @@
+---
+title: PostgreSQLのインデックス設計とクエリパフォーマンスチューニング実践
+description: B-Tree、GIN、部分インデックス、カバリングインデックスの使い分けから、EXPLAIN ANALYZE の読み解き方、PgBouncer 接続プール最適化まで徹底解説。
+slug: /postgresql-performance-tuning-indexing-guide
+tags: postgresql,database,sql,performance,backend,indexing
+date: 2026-10-19
+visible: published
+pin: false
+---
+
+PostgreSQL は、拡張性の高さ、厳格な ACID 特性、そして高度な JSONB サポートにより、世界中の開発者に広く選ばれているリレーショナルデータベースです。
+
+しかし、データ量やリクエスト数の増加に伴い、ミリ秒単位だったクエリが数秒に遅延し、接続枯渇や CPU 使用率 100% といった深刻な障害を引き起こすケースが少なくありません。本記事では、PostgreSQL におけるインデックス設計とパフォーマンスチューニングの鉄則を解説します。
+
+---
+
+## 1. 最適なインデックスの選定と仕組み
+
+単にカラムごとにデフォルトの B-Tree インデックスを作成するだけでは不十分です。
+
+### 1) カバリングインデックス（Covering Index）
+`INCLUDE` 句を使用することで、テーブル本体（Heap）への参照を回避し、インデックスツリーのみでクエリを完了させる **Index-Only Scan** を実現できます：
+
+```sql
+-- カバリングインデックスの作成
+CREATE INDEX idx_users_email_covering ON users(email) INCLUDE (status, updated_at);
+
+-- 対象クエリ（ゼロ Heap Fetch）
+SELECT email, status, updated_at FROM users WHERE email = 'dev@xptdev.com';
+```
+
+### 2) 部分インデックス（Partial Index）による省メモリ化
+特定のステータスを持つレコード（例：全体の数％しかない未払い注文）のみをインデックス対象とすることで、インデックスサイズを劇的に縮小できます：
+
+```sql
+CREATE INDEX idx_orders_unpaid ON orders(created_at) 
+WHERE status = 'PENDING_PAYMENT';
+```
+
+---
+
+## 2. `EXPLAIN (ANALYZE, BUFFERS)` の解析
+
+クエリの実際の実行コストを測定する際は、必ず `BUFFERS` オプションを付与します：
+
+```sql
+EXPLAIN (ANALYZE, BUFFERS, TIMING)
+SELECT u.id, u.email, o.total_amount
+FROM users u
+JOIN orders o ON u.id = o.user_id
+WHERE o.created_at >= '2026-01-01'
+ORDER BY o.total_amount DESC
+LIMIT 20;
+```
+
+* **shared hit**: メモリ（キャッシュ）内から読み込まれたブロック数。
+* **shared read**: 物理ディスクから読み込まれたブロック数（少ないほど高速）。
+* **External Merge Disk**: `work_mem` の不足により、ディスクを使った外部ソートが発生している警告。
+
+---
+
+## 3. PgBouncer による接続プール管理
+
+PostgreSQL はプロセス駆動モデルを採用しているため、クライアント接続ごとに約 10MB のメモリを消費します。高並行処理環境では、**PgBouncer** を導入して `transaction` プールモードで運用することが必須です。
+
+SSD 環境向けの設定として、`postgresql.conf` で `random_page_cost = 1.1` に設定し、`shared_buffers` を実メモリの 25% 程度に割り当てることで、最適なスループットが得られます。

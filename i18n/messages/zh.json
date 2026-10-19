@@ -8,13 +8,17 @@
   "Header": {
     "links": [
       {
-        "name": "在线工具箱",
+        "name": "开发工具箱",
+        "href": "/tools"
+      },
+      {
+        "name": "高阶工具库 (100+)",
         "href": "https://tools.xptdev.com",
         "target": "_blank",
         "rel": "noopener noreferrer"
       },
       {
-        "name": "技术博客",
+        "name": "技术专栏",
         "href": "/blog"
       },
       {

@@ -1,0 +1,49 @@
+---
+title: 個人開発者の海外決済システム設計：StripeとLemon Squeezyの徹底比較と実装
+description: Merchant of Record (MoR) と決済代行事業者の違い、世界各国の付加価値税（VAT/Sales Tax）対応、Webhook のべき等性処理を解説。
+slug: /payment-integration-stripe-vs-lemonsqueezy-guide
+tags: payments,stripe,lemonsqueezy,saas,indie-hacker,architecture
+date: 2026-10-19
+visible: published
+pin: false
+---
+
+グローバル市場向けの個人開発（Indie Hacker）や SaaS 運営において、安全かつ法的に準拠した決済基盤の構築は収益化の要となります。
+
+代表的な選択肢である **Stripe** と **Lemon Squeezy**（MoR: 登録販売者モデル）の違いを比較します。
+
+---
+
+## 1. 決済ゲートウェイ vs Merchant of Record (MoR)
+
+```text
+【Stripe（決済処理代行）】
+購入者 ---> Stripe ---> あなたの会社
+責任所在：開発者が世界各国の付加価値税（EU VAT、米各州売上税など）を自ら計算・申告・納税する義務を負う。
+
+【Lemon Squeezy（Merchant of Record）】
+購入者 ---> Lemon Squeezy（法的販売主） ---> あなたへの配分支払い
+責任所在：Lemon Squeezy が世界各国の税務処理、インボイス発行、返金対応を代行する。
+```
+
+### 比較まとめ
+* **月商 500 万円未満の個人開発者**: 税務申告や海外法人の維持コストを回避できる **Lemon Squeezy** が最適です。
+* **専任の会計・法務チームを持つ企業**: 手数料の低い **Stripe** が適しています。
+
+---
+
+## 2. Webhook のべき等性（Idempotency）保証
+
+Webhook は再送される可能性があるため、同じイベントを二重処理しないよう、DB や Redis に `eventId` を保存して重複を防止します。
+
+```typescript
+// べき等性チェック
+const alreadyHandled = await db.processedEvents.findUnique({
+  where: { eventId },
+});
+
+if (alreadyHandled) {
+  return NextResponse.json({ message: "Already processed" }, { status: 200 });
+}
+```
+署名検証（HMAC SHA-256）とべき等性チェックを徹底することで、安全な決済システムを運用できます。

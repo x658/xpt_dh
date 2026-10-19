@@ -9,6 +9,10 @@
     "links": [
       {
         "name": "Dev Tools",
+        "href": "/tools"
+      },
+      {
+        "name": "Expanded Suite (100+)",
         "href": "https://tools.xptdev.com",
         "target": "_blank",
         "rel": "noopener noreferrer"

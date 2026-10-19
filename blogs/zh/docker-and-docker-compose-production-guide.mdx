@@ -1,0 +1,166 @@
+---
+title: Docker 与 Docker Compose 生产级部署与性能调优完全指南
+description: 深度解析 Docker 多阶段构建、非 root 安全运行、Compose v2 规范、日志轮转策略与生产环境内存 CPU 限制调优。
+slug: /docker-and-docker-compose-production-guide
+tags: docker,docker-compose,devops,linux,security,performance
+date: 2026-10-19
+visible: published
+pin: false
+---
+
+在将现代 Web 服务（如 Next.js、Go、Node.js、Python FastAPI）投入生产环境时，Docker 与 Docker Compose 是独立开发者和工程团队构建可预测、可移植交付链路的黄金标准。
+
+然而，许多开发者的 Docker 配置往往仅停留在「能跑就行」的阶段：镜像体积高达数 GB、容器默认以宿主机 `root` 权限运行、缺乏健康检查以及未对日志进行轮转导致磁盘打满宕机。本文将系统性拆解生产级 Docker 与 Docker Compose 的加固标准与调优实践。
+
+---
+
+## 1. 极致精简：多阶段构建 (Multi-Stage Build)
+
+生产环境的容器镜像应当遵循**最小化攻击面（Least Privilege & Minimal Surface）**原则。编译工具链（Node/Go/Rust 编译器、Python 构建依赖）只应存在于构建阶段，最终运行时镜像只保留纯二进制或精简运行环境。
+
+### Next.js 生产级精简 Dockerfile 示例
+
+```dockerfile
+# 阶段 1: 依赖准备 (Deps)
+FROM node:22-alpine AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml* ./
+RUN corepack enable pnpm && pnpm i --frozen-lockfile
+
+# 阶段 2: 静态构建 (Builder)
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+# 开启独立输出模式 (standalone)，极大缩小最终运行时体积
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN corepack enable pnpm && pnpm build
+
+# 阶段 3: 最小化安全运行时 (Runner)
+FROM node:22-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# 创建非 root 专用运行用户
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+# 仅拷贝构建完成的静态与独立执行文件
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
+```
+
+### 多阶段构建的核心收益
+1. **体积缩减 90%**：将原本 1.2GB+ 的 Node.js 镜像缩减至 100MB 以内，大幅缩短拉取与发布时间。
+2. **非 root 安全沙箱**：通过 `USER nextjs` 规避容器逃逸漏洞带来的宿主机提权风险。
+
+---
+
+## 2. Docker Compose v2 生产级配置规范
+
+生产环境下的 `docker-compose.yml` 绝不能简单写两行 `image` 和 `ports`，必须显式定义**资源限额、健康探针、重启策略与日志滚动**。
+
+```yaml
+version: '3.8'
+
+services:
+  web-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xptdev/web-app:latest
+    container_name: production_web_app
+    restart: unless-stopped
+    
+    ports:
+      - "127.0.0.1:3000:3000" # 关键安全原则：只绑定本地回环，通过 Nginx/Caddy 反代
+      
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://user:secret@db:5432/app_db?sslmode=disable
+      
+    # 资源上限限制：防止单容器内存泄漏拖垮整个宿主机
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1024M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+
+    # 健康检查：配合反向代理或编排器实现无损滚动更新
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    # 关键机制：日志轮转 (Log Rotation) 防止磁盘暴毙
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+    networks:
+      - internal_network
+
+networks:
+  internal_network:
+    driver: bridge
+```
+
+---
+
+## 3. 生产运维的五大避坑原则
+
+### 原则一：严禁向公网裸放内部端口
+在 Docker Compose 的 `ports` 中，务必使用 `127.0.0.1:PORT:PORT` 格式，切勿使用 `PORT:PORT`。
+* `PORT:PORT` 会直接由 Docker 在 Linux `iptables` 的 `PREROUTING` 链中开辟规则，导致宿主机 `UFW` 或云防火墙规则失效，将数据库或内部端口直接暴露给公网黑客。
+
+### 原则二：强制配置日志上限 (`logging`)
+Docker 默认的日志策略是不限大小持续追加。容器跑了半年后，`/var/lib/docker/containers/` 下的 `*-json.log` 动辄几十 GB，直接导致宿主机磁盘 100% 满盘、数据库只读或宕机。配置 `max-size: "50m"` 和 `max-file: "5"` 可以彻底杜绝此问题。
+
+### 原则三：利用 `.dockerignore` 避免敏感凭证泄漏
+确保将以下文件列入根目录下的 `.dockerignore`：
+```text
+.git
+.env*
+node_modules
+.next
+*.log
+docker-compose*.yml
+```
+防止本地测试用私钥与高敏感环境变量随 `COPY . .` 被打包进只读镜像分发出去。
+
+### 原则四：内存与 CPU 软硬约束
+没有配置 `limits.memory` 的容器在遭遇瞬时高并发或内存泄漏时，Linux 内核的 OOM Killer 会随机杀死宿主机上高内存占用的关键进程（甚至包括 SSH 服务或 MySQL）。明确给容器限制 512M 或 1G 内存，可保宿主机全局系统安全。
+
+---
+
+## 4. 总结与最佳实践清单
+
+一套成熟的生产级容器化架构，必须实现：
+* [x] 使用 Alpine / Debian-Slim 等轻量精简基础镜像
+* [x] 开启非 root 用户（UID 1001）运行应用
+* [x] 限制端口监听范围为 `127.0.0.1`，通过安全网关统一暴露
+* [x] 设定 JSON 日志最大 50MB 自动轮转
+* [x] 配置周期性健康探针与内存资源硬约束
+
+遵照上述标准构建的 Docker 架构，具备极高的稳定性和防御弹性，能够从容支撑高并发在线流量。

@@ -1,0 +1,157 @@
+---
+title: Docker and Docker Compose Production Deployment & Performance Tuning Masterclass
+description: A comprehensive architectural guide to multi-stage Docker builds, non-root security sandboxing, Compose v2 specifications, log rotation, and resource throttling.
+slug: /docker-and-docker-compose-production-guide
+tags: docker,docker-compose,devops,linux,security,performance
+date: 2026-10-19
+visible: published
+pin: false
+---
+
+Containerizing modern web applications (Next.js, Go, Python FastAPI, Node.js) with Docker and Docker Compose represents the industry standard for reproducible, predictable deployments.
+
+However, many engineers deploy configurations suited only for local development: bloated multi-gigabyte images, default `root` execution, absence of health probes, and unbounded log accumulation that crashes servers due to disk exhaustion. This guide establishes production-grade hardening standards for container operations.
+
+---
+
+## 1. Multi-Stage Builds: Minimizing the Attack Surface
+
+Production containers must adhere to the **Principle of Least Privilege and Minimal Surface Area**. Compilers, build utilities, and test suites must remain exclusively in the build stages, leaving only minimal runtime dependencies in the final artifact.
+
+### Next.js Production-Ready Minimal Dockerfile
+
+```dockerfile
+# Stage 1: Dependency Caching
+FROM node:22-alpine AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml* ./
+RUN corepack enable pnpm && pnpm i --frozen-lockfile
+
+# Stage 2: Static Builder
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN corepack enable pnpm && pnpm build
+
+# Stage 3: Hardened Runtime Sandbox
+FROM node:22-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# Non-root user isolation
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
+```
+
+### Strategic Benefits
+1. **90% Footprint Reduction**: Compresses typical 1.2GB Node.js images down to ~95MB, accelerating CI/CD deployment pipelines.
+2. **Container Breakout Mitigation**: Running under unprivileged UID 1001 prevents host privilege escalation even in the event of zero-day vulnerabilities.
+
+---
+
+## 2. Docker Compose v2 Production Specification
+
+A resilient production `docker-compose.yml` must explicitly define **resource boundaries, health metrics, restart behaviors, and automated log rolling**.
+
+```yaml
+version: '3.8'
+
+services:
+  web-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xptdev/web-app:latest
+    container_name: production_web_app
+    restart: unless-stopped
+    
+    ports:
+      # Mandatory security practice: Bind exclusively to local loopback
+      - "127.0.0.1:3000:3000"
+      
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://user:secret@db:5432/app_db?sslmode=disable
+      
+    # Hard CPU & Memory bounds prevent OOM cascading failures
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1024M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    # Automated log rotation prevents disk starvation
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+    networks:
+      - internal_network
+
+networks:
+  internal_network:
+    driver: bridge
+```
+
+---
+
+## 3. Core Operational Security Rules
+
+### Rule 1: Never Expose Raw Ports to Public Interfaces
+Always format exposed ports as `127.0.0.1:HOST_PORT:CONTAINER_PORT`. Bare `PORT:PORT` directives bypass host firewall rules (`ufw` / `iptables`) via Docker's automated `PREROUTING` rules, exposing private services to public scans.
+
+### Rule 2: Enforce Mandatory Log Rotation
+Docker defaults to unlimited log retention. Over months of uptime, `/var/lib/docker/containers/*/*.log` routinely grows to tens of gigabytes, causing sudden server outages due to 100% disk usage. Specifying `max-size: "50m"` and `max-file: "5"` eliminates this vulnerability.
+
+### Rule 3: Maintain Comprehensive `.dockerignore` Rules
+Exclude critical secrets from entering image layer caches:
+```text
+.git
+.env*
+node_modules
+.next
+*.log
+docker-compose*.yml
+```
+
+---
+
+## 4. Production Readiness Checklist
+
+Before promoting any containerized workload to production:
+* [x] Base image is Alpine or Debian-Slim minimal distribution
+* [x] Service executes under non-root unprivileged UID
+* [x] Network ports bound strictly to `127.0.0.1` behind a reverse proxy
+* [x] JSON logging capped at 50MB with 5 rolling backup files
+* [x] Explicit memory limits defined to protect kernel stability

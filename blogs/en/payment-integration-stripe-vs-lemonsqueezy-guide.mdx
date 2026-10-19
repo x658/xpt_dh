@@ -1,0 +1,108 @@
+---
+title: "Global Payment Architecture for Indie Hackers: Stripe vs Lemon Squeezy In-Depth"
+description: "Decoupling Merchant of Record (MoR) from payment processors, navigating global VAT sales tax compliance, webhook idempotency, and SaaS subscriptions."
+slug: /payment-integration-stripe-vs-lemonsqueezy-guide
+tags: payments,stripe,lemonsqueezy,saas,indie-hacker,architecture
+date: 2026-10-19
+visible: published
+pin: false
+---
+
+For bootstrapped founders and independent developers taking software products global, establishing a compliant, robust billing pipeline is the ultimate threshold between a side project and a viable business.
+
+The primary architectural decision sits between **Stripe** (payment processor) and **Lemon Squeezy / Paddle** (Merchant of Record). While both handle credit cards and subscriptions, their legal, taxation, and engineering responsibilities diverge substantially.
+
+---
+
+## 1. Architectural Distinction: Processor vs. Merchant of Record (MoR)
+
+```text
+[Payment Processor: Stripe]
+End Customer ---> Stripe (Transaction Facilitation) ---> Your Business Entity
+Tax Liability: Your company is the Merchant of Record. You must register, calculate, remit, and file Digital Sales Tax / EU VAT across dozens of foreign jurisdictions.
+
+[Merchant of Record: Lemon Squeezy / Paddle]
+End Customer ---> Lemon Squeezy (Legal Seller & Tax Filer) ---> Your Payout
+Tax Liability: Lemon Squeezy assumes 100% legal seller responsibility, remitting worldwide tax and generating compliant localized invoices.
+```
+
+### Strategic Decision Matrix
+
+| Dimension | Stripe Direct | Lemon Squeezy (MoR) |
+| :--- | :--- | :--- |
+| **Tax Liability** | Merchant bears full global tax exposure | 100% handled by platform |
+| **Fee Structure** | 2.9% + $0.30 per charge | 5% + $0.50 |
+| **Legal Entity** | Demands foreign incorporation (Stripe Atlas / LLC) | Open to individuals and worldwide entities |
+| **Dispute Defense** | $15 dispute fee per chargeback | Automated risk mitigation |
+| **Target Workload** | Mature firms with dedicated accounting (>$50k/mo) | Indie Hackers, early-stage SaaS, digital goods |
+
+---
+
+## 2. Idempotent Webhook Processing Pattern
+
+Webhooks operate under **at-least-once delivery guarantees**. Flaky networks and provider retries inevitably dispatch identical events multiple times. Production handlers must enforce strict idempotency:
+
+```typescript
+import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
+
+export async function POST(req: NextRequest) {
+  const rawBody = await req.text();
+  const signature = req.headers.get("x-signature") || "";
+  const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET || "";
+
+  // 1. Verify cryptographic HMAC signature
+  const hmac = crypto.createHmac("sha256", secret);
+  const digest = Buffer.from(hmac.update(rawBody).digest("hex"), "utf8");
+  const signatureBuffer = Buffer.from(signature, "utf8");
+
+  if (!crypto.timingSafeEqual(digest, signatureBuffer)) {
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
+  const payload = JSON.parse(rawBody);
+  const eventId = payload.meta.event_id || payload.data.id;
+
+  // 2. Check deduplication storage
+  const alreadyHandled = await db.processedEvents.findUnique({
+    where: { eventId },
+  });
+
+  if (alreadyHandled) {
+    return NextResponse.json({ message: "Already processed" }, { status: 200 });
+  }
+
+  // 3. Atomic transaction execution
+  await db.$transaction(async (tx) => {
+    if (payload.meta.event_name === "order_created") {
+      await tx.users.update({
+        where: { email: payload.data.attributes.user_email },
+        data: { plan: "PRO" },
+      });
+    }
+
+    await tx.processedEvents.create({
+      data: { eventId, processedAt: new Date() },
+    });
+  });
+
+  return NextResponse.json({ status: "success" });
+}
+```
+
+---
+
+## 3. Subscription State Machine
+
+Handle the five critical stages of user billing:
+1. `subscription_created`: Provision Pro access entitlements.
+2. `subscription_payment_success`: Extend account renewal horizons.
+3. `subscription_payment_failed`: Trigger automated dunning emails; establish a 3-5 day grace period.
+4. `subscription_cancelled`: Maintain benefits until the current billing interval expires.
+5. `subscription_expired`: Revoke access and downgrade account tier.
+
+---
+
+## 4. Architect's Recommendation
+
+For indie founders generating under **$50,000 monthly**, a Merchant of Record like Lemon Squeezy provides unmatched peace of mind, freeing engineering focus for core product development. Transitioning to Stripe is straightforward once compliance scale justifies the administrative overhead.

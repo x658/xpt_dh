@@ -1,0 +1,130 @@
+---
+title: DockerとDocker Composeによる本番環境デプロイとパフォーマンス最適化完全ガイド
+description: マルチステージビルド、非rootユーザー運用、Compose v2仕様、ログローテーション、メモリ/CPU制限による本番コンテナ堅牢化の実践解説。
+slug: /docker-and-docker-compose-production-guide
+tags: docker,docker-compose,devops,linux,security,performance
+date: 2026-10-19
+visible: published
+pin: false
+---
+
+モダンな Web サービス（Next.js、Go、Python、Node.js）を本番環境へ安全に投入する際、Docker と Docker Compose は再現性の高いデプロイパイプラインの業界標準となっています。
+
+しかし多くの現場では、数ギガバイトに膨らんだイメージ、`root` 権限でのデフォルト実行、ヘルスチェックの欠如、ディスク枯渇を引き起こす無制限ログ蓄積など、開発用の設定がそのまま本番に残っています。本記事では、堅牢な本番向け Docker 運用のベストプラクティスを解説します。
+
+---
+
+## 1. マルチステージビルドによるイメージ極小化
+
+本番コンテナは**最小特権・最小攻撃面（Least Privilege & Minimal Surface）**の原則に従う必要があります。コンパイラや開発用パッケージはビルドステージに閉じ込め、ランタイムには実行に必要な最小ファイルのみを配置します。
+
+### Next.js 本番向け Dockerfile 構成例
+
+```dockerfile
+# ステージ 1: 依存関係の解決
+FROM node:22-alpine AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml* ./
+RUN corepack enable pnpm && pnpm i --frozen-lockfile
+
+# ステージ 2: 静的ビルド
+FROM node:22-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN corepack enable pnpm && pnpm build
+
+# ステージ 3: 最小ランタイム環境
+FROM node:22-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+# 非 root ユーザーの作成
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+CMD ["node", "server.js"]
+```
+
+---
+
+## 2. Docker Compose v2 本番仕様の策定
+
+本番環境の `docker-compose.yml` では、**リソース制限、ヘルスプローブ、ログローテーション**を明示的に指定します。
+
+```yaml
+version: '3.8'
+
+services:
+  web-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: xptdev/web-app:latest
+    container_name: production_web_app
+    restart: unless-stopped
+    
+    ports:
+      # 安全対策：外部へ直接公開せず 127.0.0.1 のみにバインド
+      - "127.0.0.1:3000:3000"
+      
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://user:secret@db:5432/app_db?sslmode=disable
+      
+    # メモリリークによるホスト巻き込み防止
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1024M
+        reservations:
+          cpus: '0.2'
+          memory: 256M
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    # ログローテーションによりディスク枯渇を防止
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+    networks:
+      - internal_network
+
+networks:
+  internal_network:
+    driver: bridge
+```
+
+---
+
+## 3. 本番運用の重要チェックリスト
+
+1. **ポート公開の制限**: `0.0.0.0` ではなく `127.0.0.1:PORT:PORT` と指定し、Nginx や Caddy などのリバースプロキシ経由で公開する。
+2. **ログローテーションの強制**: `max-size: 50m` と `max-file: 5` を必ず設定し、ログファイルによるディスク満杯障害を防ぐ。
+3. **`.dockerignore` の徹底**: `.env` や `.git` などの機密情報がビルドキャッシュやイメージ層に混入しないよう除外する。
+4. **メモリ制限**: 各コンテナにメモリ上限を設定し、OS の OOM Killer による不要なプロセス強制終了を回避する。

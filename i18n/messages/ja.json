@@ -8,24 +8,22 @@
   "Header": {
     "links": [
       {
-        "name": "ブログ",
+        "name": "開発ツール",
+        "href": "/tools"
+      },
+      {
+        "name": "拡張ツール箱 (100+)",
+        "href": "https://tools.xptdev.com",
+        "target": "_blank",
+        "rel": "noopener noreferrer"
+      },
+      {
+        "name": "技術ブログ",
         "href": "/blog"
       },
       {
-        "name": "サイトについて",
+        "name": "概要",
         "href": "/about"
-      },
-      {
-        "name": "Source Code",
-        "href": "https://github.com/weijunext/nextjs-starter",
-        "target": "_blank",
-        "rel": "noopener noreferrer nofollow"
-      },
-      {
-        "name": "Pro Version",
-        "href": "https://nexty.dev",
-        "target": "_blank",
-        "rel": "noopener noreferrer"
       }
     ]
   },
