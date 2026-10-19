@@ -49,7 +49,9 @@ Headers:                                            2. 校验时间戳防重放�
 ### 1. 共享密钥与 HMAC-SHA256 签名机制
 双方预先线下协商一个高强度的随机密钥（Secret）。发送方在发起 HTTP 请求前，以该密钥为基础，对**未经解析的原始请求体字节流**进行密码学 HMAC 哈希：
 
-$$Signature = HMAC\text{-}SHA256(Secret, RawPayload)$$
+```text
+Signature = HMAC-SHA256(Secret, RawPayload)
+```
 
 接收方在收到请求后，用相同密钥重新计算哈希并进行校验。
 
