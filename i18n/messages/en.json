@@ -54,79 +54,75 @@
           ]
         },
         {
-          "title": "Open Source",
+          "title": "Developer Tools",
           "links": [
             {
-              "href": "https://github.com/weijunext/nextjs-starter",
-              "name": "Next.js Starter",
-              "rel": "noopener noreferrer nofollow",
+              "href": "/tools",
+              "name": "Client-Side Toolkit"
+            },
+            {
+              "href": "https://tools.xptdev.com",
+              "name": "Expanded Suite (100+)",
+              "rel": "noopener noreferrer",
               "target": "_blank"
             },
             {
-              "href": "https://github.com/weijunext/landing-page-boilerplate",
-              "name": "Landing Page Boilerplate",
-              "rel": "noopener noreferrer nofollow",
-              "target": "_blank"
-            },
-            {
-              "href": "https://github.com/weijunext/weekly-boilerplate",
-              "name": "Blog Boilerplate",
-              "rel": "noopener noreferrer nofollow",
-              "target": "_blank"
+              "href": "/blog",
+              "name": "Architecture Guides"
             }
           ]
         },
         {
-          "title": "Other Products",
+          "title": "Company & Legal",
           "links": [
             {
-              "href": "https://nexty.dev/",
-              "name": "Nexty - SaaS Template",
-              "rel": "noopener noreferrer",
-              "target": "_blank"
+              "href": "/about",
+              "name": "About XPT Dev"
             },
             {
-              "href": "https://myogimage.com/",
-              "name": "OG Image Generator",
-              "rel": "noopener noreferrer",
-              "target": "_blank"
+              "href": "/privacy-policy",
+              "name": "Privacy Policy"
+            },
+            {
+              "href": "/terms-of-service",
+              "name": "Terms of Service"
             }
           ]
         }
       ]
     },
     "Newsletter": {
-      "title": "Subscribe to our newsletter",
-      "description": "Get the latest news and updates from Next.js Starter",
+      "title": "Engineering Digest",
+      "description": "Receive deep-dive cloud architecture tutorials and security engineering updates from XPT Dev.",
       "defaultErrorMessage": "Please enter a valid email address",
       "successMessage": "Subscription successful",
       "errorMessage": "Subscription failed",
       "errorMessage2": "Subscription failed. Please try again later.",
       "subscribe": "Subscribe",
       "subscribing": "Subscribing...",
-      "subscribed": "Subscription successful! Thank you for your attention."
+      "subscribed": "Subscription successful! Thank you for subscribing."
     }
   },
   "Home": {
     "title": "XPT Dev",
-    "tagLine": "Developer Tools & Global Tech Hub",
-    "description": "A multilingual Next.js 16 starter with built-in i18n support. Launch your global-ready web application with a clean, efficient, and SEO-friendly foundation."
+    "tagLine": "Privacy-First Developer Utilities & Cloud Architecture Hub",
+    "description": "Browser-native developer utilities powered by Web Cryptography APIs (JSON, Base64, UUID v4, SHA-256/512, Secret Generator) and battle-tested cloud engineering guides."
   },
   "Blog": {
-    "title": "Blog Posts",
-    "description": "A list of blog posts"
+    "title": "Technical Architecture & Engineering Guides",
+    "description": "In-depth production guides on cloud infrastructure, web security, serverless databases, and full-stack performance."
   },
   "About": {
-    "title": "About",
-    "description": "About the site"
+    "title": "About XPT Dev",
+    "description": "Learn about XPT Dev's mission, zero-knowledge client-side privacy architecture, and editorial standards."
   },
   "TermsOfService": {
     "title": "Terms of Service",
-    "description": "Terms of Service"
+    "description": "Terms and conditions governing the use of XPT Dev developer utilities and technical documentation."
   },
   "PrivacyPolicy": {
     "title": "Privacy Policy",
-    "description": "Privacy Policy"
+    "description": "How XPT Dev protects your privacy, processes client-side tool data locally, and complies with cookie and advertising standards."
   },
   "Showcase": {
     "title": "Built with This Starter",

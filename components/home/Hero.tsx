@@ -1,72 +1,138 @@
 import { Button } from "@/components/ui/button";
-import { siteConfig } from "@/config/site";
-import { MousePointerClick } from "lucide-react";
-import { useTranslations } from "next-intl";
-import Link from "next/link";
-import { SiDiscord } from "react-icons/si";
+import { Link as I18nLink } from "@/i18n/routing";
+import { BookOpen, Cpu, Lock, ShieldCheck, Terminal, Wrench } from "lucide-react";
 
-export default function Hero() {
-  const t = useTranslations("Home");
+interface HeroProps {
+  locale?: string;
+}
+
+export default function Hero({ locale = "en" }: HeroProps) {
+  const isZh = locale === "zh";
+  const isJa = locale === "ja";
+
+  const badgeText = isZh
+    ? "100% 浏览器本地沙箱运算 · 零服务端数据上传"
+    : isJa
+    ? "100% ブラウザ内ローカル実行 · ゼロ知識プライバシー設計"
+    : "100% Browser Sandbox Execution · Zero Server Telemetry";
+
+  const titlePrefix = isZh
+    ? "隐私优先的"
+    : isJa
+    ? "プライバシー最優先の"
+    : "Privacy-First ";
+
+  const titleHighlight = isZh
+    ? "开发者工具箱"
+    : isJa
+    ? "開発者ツール"
+    : "Developer Utilities";
+
+  const titleSuffix = isZh
+    ? "与云原生架构专栏"
+    : isJa
+    ? "＆クラウド技術ハブ"
+    : " & Cloud Architecture Hub";
+
+  const subtitle = isZh
+    ? "基于原生 Web Cryptography API 构建的纯前端高频开发工具套件（JSON 校验、Base64 流转码、UUID v4、SHA-256/512 哈希、高熵密钥生成），以及经过生产环境实战检验的云原生架构深度指南。"
+    : isJa
+    ? "Web Cryptography API を活用したクライアント完結型の開発者ユーティリティ（JSON 整形、Base64、UUID v4、SHA-256/512、暗号鍵生成）と、本番環境で検証されたクラウドアーキテクチャ解説を提供します。"
+    : "Client-side cryptographic utilities, RFC-compliant formatters, and battle-tested cloud engineering guides—engineered for full-stack developers who demand speed and zero-knowledge privacy.";
+
+  const primaryCta = isZh
+    ? "打开开发者工具箱"
+    : isJa
+    ? "開発ツールを開く"
+    : "Launch Developer Toolkit";
+
+  const secondaryCta = isZh
+    ? "阅读深度技术专栏"
+    : isJa
+    ? "技術ガイドを読む"
+    : "Explore Technical Guides";
+
+  const stats = [
+    {
+      icon: ShieldCheck,
+      label: isZh ? "零数据离机" : isJa ? "ローカル完結" : "Zero Data Uploads",
+    },
+    {
+      icon: Terminal,
+      label: isZh ? "Web Crypto 原生加速" : isJa ? "Web Crypto ネイティブ" : "Web Crypto API",
+    },
+    {
+      icon: Cpu,
+      label: isZh ? "15+ 生产级架构指南" : isJa ? "15+ 本番設計ガイド" : "15+ Production Guides",
+    },
+    {
+      icon: Lock,
+      label: isZh ? "开源标准 · 永久免费" : isJa ? "完全無料・登録不要" : "Free & No Sign-up",
+    },
+  ];
 
   return (
-    <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-16 pt-24 text-center">
-      <h1 className="mx-auto max-w-4xl font-display text-5xl font-bold tracking-tight text-slate-900 sm:text-7xl dark:text-gray-200">
-        Next.js{" "}
-        <span className="relative whitespace-nowrap text-blue-600">
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 418 42"
-            className="absolute left-0 top-2/3 h-[0.58em] w-full fill-blue-300/70"
-            preserveAspectRatio="none"
-          >
-            <path d="M203.371.916c-26.013-2.078-76.686 1.963-124.73 9.946L67.3 12.749C35.421 18.062 18.2 21.766 6.004 25.934 1.244 27.561.828 27.778.874 28.61c.07 1.214.828 1.121 9.595-1.176 9.072-2.377 17.15-3.92 39.246-7.496C123.565 7.986 157.869 4.492 195.942 5.046c7.461.108 19.25 1.696 19.17 2.582-.107 1.183-7.874 4.31-25.75 10.366-21.992 7.45-35.43 12.534-36.701 13.884-2.173 2.308-.202 4.407 4.442 4.734 2.654.187 3.263.157 15.593-.78 35.401-2.686 57.944-3.488 88.365-3.143 46.327.526 75.721 2.23 130.788 7.584 19.787 1.924 20.814 1.98 24.557 1.332l.066-.011c1.201-.203 1.53-1.825.399-2.335-2.911-1.31-4.893-1.604-22.048-3.261-57.509-5.556-87.871-7.36-132.059-7.842-23.239-.254-33.617-.116-50.627.674-11.629.54-42.371 2.494-46.696 2.967-2.359.259 8.133-3.625 26.504-9.81 23.239-7.825 27.934-10.149 28.304-14.005.417-4.348-3.529-6-16.878-7.066Z"></path>
-          </svg>
-          <span className="relative"> i18n </span>{" "}
+    <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pb-16 pt-20 text-center">
+      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs sm:text-sm font-medium bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border border-blue-200/80 dark:border-blue-800/60 mb-8">
+        <ShieldCheck className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+        <span>{badgeText}</span>
+      </div>
+
+      <h1 className="mx-auto max-w-4xl font-display text-4xl font-bold tracking-tight text-slate-900 sm:text-6xl dark:text-gray-100 leading-tight">
+        {titlePrefix}
+        <span className="relative whitespace-nowrap text-blue-600 dark:text-blue-400">
+          <span className="relative">{titleHighlight}</span>
         </span>
-        Starter
+        {titleSuffix}
       </h1>
-      <p className="mx-auto mt-6 max-w-2xl text-2xl tracking-tight text-slate-700 dark:text-slate-500">
-        {t("description")}
+
+      <p className="mx-auto mt-6 max-w-3xl text-lg sm:text-xl leading-relaxed text-slate-600 dark:text-slate-400">
+        {subtitle}
       </p>
 
-      <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-2">
+      <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
         <Button
-          className="h-11 w-full sm:w-fit rounded-xl px-8 py-2 bg-white text-indigo-500 hover:text-indigo-600 border-2 border-indigo-500"
+          className="h-12 w-full sm:w-fit rounded-xl px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-sm"
+          asChild
+        >
+          <I18nLink
+            href="/tools"
+            title={primaryCta}
+            className="flex items-center gap-2"
+          >
+            <Wrench className="w-4 h-4" />
+            {primaryCta}
+          </I18nLink>
+        </Button>
+        <Button
+          className="h-12 w-full sm:w-fit rounded-xl px-8 py-3 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 font-semibold"
           variant="outline"
           asChild
         >
-          <Link
-            href="https://nexty.dev/"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Get SaaS Version - NEXTY.DEV"
-            prefetch={false}
+          <I18nLink
+            href="/blog"
+            title={secondaryCta}
             className="flex items-center gap-2"
           >
-            <MousePointerClick className="w-4 h-4 text-indigo-500" />
-            Get SaaS Version
-          </Link>
+            <BookOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            {secondaryCta}
+          </I18nLink>
         </Button>
-        <Button
-          className="h-11 w-full sm:w-fit rounded-xl px-8 py-2 bg-white text-indigo-500 hover:text-indigo-600 border-2 border-indigo-500"
-          variant="outline"
-          asChild
-        >
-          <Link
-            href={
-              siteConfig.socialLinks?.discord ||
-              "https://discord.com/invite/R7bUxWKRqZ"
-            }
-            target="_blank"
-            rel="noopener noreferrer nofollow"
-            title="Join Discord"
-            prefetch={false}
-            className="flex items-center gap-2"
-          >
-            <SiDiscord className="w-4 h-4 text-indigo-500" />
-            Join Discord
-          </Link>
-        </Button>
+      </div>
+
+      <div className="mt-12 pt-8 border-t border-slate-200/60 dark:border-slate-800/80 max-w-3xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {stats.map((item, idx) => {
+          const Icon = item.icon;
+          return (
+            <div
+              key={idx}
+              className="flex items-center justify-center gap-2 text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-400"
+            >
+              <Icon className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+              <span>{item.label}</span>
+            </div>
+          );
+        })}
       </div>
     </section>
   );

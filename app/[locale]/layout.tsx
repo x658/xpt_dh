@@ -69,7 +69,9 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale || DEFAULT_LOCALE} suppressHydrationWarning>
-      <head />
+      <head>
+        <GoogleAdsense />
+      </head>
       <body
         className={cn(
           "min-h-screen bg-background flex flex-col font-sans antialiased"
@@ -99,7 +101,6 @@ export default async function LocaleLayout({
             <Analytics />
             <BaiDuAnalytics />
             <GoogleAnalytics />
-            <GoogleAdsense />
             <PlausibleAnalytics />
           </>
         )}

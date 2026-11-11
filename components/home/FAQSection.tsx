@@ -36,27 +36,27 @@ export default function FAQSection({ locale }: FAQSectionProps) {
     },
     {
       q: isZh
-        ? "我可以将 XPT Dev 开源模板用于自己的商业 SaaS 或出海项目吗？"
+        ? "为什么推荐使用浏览器端 Web Cryptography API 处理开发数据？"
         : isJa
-        ? "XPT Dev のオープンソーステンプレートを商用プロジェクトに利用できますか？"
-        : "Can I use XPT Dev templates for commercial SaaS or client projects?",
+        ? "なぜブラウザ内の Web Cryptography API でデータを処理するのですか？"
+        : "Why process developer payloads in-browser with the Web Cryptography API?",
       a: isZh
-        ? "完全可以。本站所依托的 Next.js 模板基于宽松的 MIT 开源协议发布，您可以自由克隆、修改、商业化部署您的落地页、导航站或轻量工具站点，无任何限制。"
+        ? "许多传统的在线格式化或编码工具会将用户的 JSON 载荷、JWT 令牌或密钥发送到后端服务器，存在严重的日志留存与凭证泄露风险。XPT Dev 借助现代浏览器底层的原生 Web Crypto 硬件加速接口，在不发生任何网络请求的前提下完成运算。"
         : isJa
-        ? "可能です。本サイトのベースとなっている Next.js テンプレートは MIT ライセンスで提供されており、商用 SaaS やプロダクト開発に自由に利用できます。"
-        : "Absolutely. The underlying Next.js architecture is distributed under the permissive MIT license, permitting unrestricted commercial usage, customization, and deployment.",
+        ? "従来のオンラインツールは JSON や API キーをサーバーへ送信するため情報漏洩リスクがありました。XPT Dev はブラウザ標準の Web Crypto API を用いてネットワーク通信なしで高速・安全に処理します。"
+        : "Many legacy online formatters transmit your JSON payloads, JWTs, or secret keys to remote backend servers, creating credential leakage risks. XPT Dev executes all operations locally via hardware-accelerated Web Crypto APIs with zero network requests.",
     },
     {
       q: isZh
-        ? "如何向 XPT Dev 提交优质工具或投稿深度技术文章？"
+        ? "如何联系 XPT Dev 技术团队反馈问题或探讨技术合作？"
         : isJa
-        ? "自分の作成したツールや技術記事を XPT Dev に掲載するには？"
-        : "How can I submit my developer tool or contribute a technical article?",
+        ? "XPT Dev チームへのフィードバックや技術的なお問い合わせ方法は？"
+        : "How can I contact the XPT Dev engineering team for feedback or inquiries?",
       a: isZh
-        ? "您可以通过首页下方的「提交产品」入口提交您的工具信息，或直接发送邮件至 admin@xptdev.com。我们的技术团队会在 1~2 个工作日内进行质量审核并免费收录。"
+        ? "如果您在使用开发者工具时遇到任何问题、发现文章中的勘误，或希望进行技术交流，欢迎随时发送邮件至 admin@xptdev.com，我们的工程团队通常会在 1~2 个工作日内回复。"
         : isJa
-        ? "トップページ下部の「製品を提出する」フォーム、または admin@xptdev.com 宛てにメールでお問い合わせください。審査の上、順次掲載いたします。"
-        : "You can submit your product via the submission form on our homepage or email us directly at admin@xptdev.com. We review and feature community projects free of charge.",
+        ? "ツールの不具合報告、技術記事に関するご質問、その他のご提案については、admin@xptdev.com までメールでお気軽にご連絡ください。通常 1〜2 営業日以内に回答いたします。"
+        : "If you encounter a bug in our utilities, spot an erratum in an architectural guide, or wish to discuss engineering collaborations, please email us at admin@xptdev.com.",
     },
   ];
 
